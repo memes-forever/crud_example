@@ -2,7 +2,14 @@
 
 ### install req
 ```shell
+python -m venv .venv
+source .venv/bin/activate
 pip install -r req.txt
+```
+
+### start web in dev
+```shell
+python app.py dev
 ```
 
 ### start web

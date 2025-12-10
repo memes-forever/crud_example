@@ -1,4 +1,5 @@
 # app.py (обновленный с поиском по таблицам items и users)
+import sys
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -245,8 +246,8 @@ def logout():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
-
-# if __name__ == "__main__":
-#     from waitress import serve
-#     serve(app, host="0.0.0.0", port=8080)
+    if 'dev' in sys.argv:
+        app.run(debug=True, port=5000)
+    else:
+        from waitress import serve
+        serve(app, host="0.0.0.0", port=8080)
