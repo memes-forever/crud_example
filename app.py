@@ -1,9 +1,10 @@
-# app.py (обновленный с пагинацией для items и users)
+# app.py (обновленный с поиском по таблицам items и users)
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime  # Для полей created_at и updated_at
 from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'  # Замените на реальный секретный ключ
@@ -58,6 +59,7 @@ def index():
     is_admin = current_user.role == 'admin'
     can_edit = current_user.role in ['admin', 'editor']
 
+    search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
     per_page = 10
 
@@ -65,6 +67,9 @@ def index():
         items_query = Item.query.options(joinedload(Item.creator))
     else:
         items_query = Item.query.filter_by(creator_id=current_user.id).options(joinedload(Item.creator))
+
+    if search_query:
+        items_query = items_query.filter(or_(Item.name.ilike(f'%{search_query}%'), Item.description.ilike(f'%{search_query}%')))
 
     pagination = items_query.order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     items = pagination.items
@@ -102,11 +107,12 @@ def index():
                 db.session.commit()
                 flash('Элемент удален!', 'danger')
 
-        return redirect(url_for('index'))
+        return redirect(url_for('index', search=search_query, page=page))
 
     return render_template('index.html',
                            items=items,
                            pagination=pagination,
+                           search_query=search_query,
                            is_admin=is_admin,
                            can_edit=can_edit,
                            current_role=current_user.role,
@@ -125,9 +131,15 @@ def users():
         flash('Доступ запрещён.', 'danger')
         return redirect(url_for('index'))
 
+    search_query = request.args.get('search', '')
     page = request.args.get('page', 1, type=int)
     per_page = 10
-    pagination = User.query.order_by(User.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+
+    users_query = User.query
+    if search_query:
+        users_query = users_query.filter(or_(User.username.ilike(f'%{search_query}%'), User.name.ilike(f'%{search_query}%')))
+
+    pagination = users_query.order_by(User.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     all_users = pagination.items
 
     if request.method == 'POST':
@@ -175,9 +187,9 @@ def users():
                 db.session.commit()
                 flash(f'Пользователь {user.username} удален.', 'danger')
 
-        return redirect(url_for('users'))
+        return redirect(url_for('users', search=search_query, page=page))
 
-    return render_template('users.html', users=all_users, pagination=pagination, current_user=current_user, is_admin=is_admin)
+    return render_template('users.html', users=all_users, pagination=pagination, search_query=search_query, current_user=current_user, is_admin=is_admin)
 
 
 # Страница логина

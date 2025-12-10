@@ -1,4 +1,4 @@
-<!-- templates/users.html — добавлена пагинация -->
+<!-- templates/users.html — добавлена форма поиска -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -33,6 +33,14 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
+
+    <!-- Форма поиска -->
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="search" class="form-control" placeholder="Поиск по логину или имени" value="{{ search_query }}">
+            <button type="submit" class="btn btn-primary">Поиск</button>
+        </div>
+    </form>
 
     <h2 class="mt-4">Список пользователей</h2>
     <div class="table-responsive">
@@ -107,7 +115,7 @@
         <ul class="pagination justify-content-center">
             {% if pagination.has_prev %}
             <li class="page-item">
-                <a class="page-link" href="{{ url_for('users', page=pagination.prev_num) }}" aria-label="Previous">
+                <a class="page-link" href="{{ url_for('users', page=pagination.prev_num, search=search_query) }}" aria-label="Previous">
                     <span aria-hidden="true">&laquo;</span>
                 </a>
             </li>
@@ -120,7 +128,7 @@
                     </li>
                     {% else %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('users', page=page_num) }}">{{ page_num }}</a>
+                        <a class="page-link" href="{{ url_for('users', page=page_num, search=search_query) }}">{{ page_num }}</a>
                     </li>
                     {% endif %}
                 {% else %}
@@ -131,7 +139,7 @@
             {% endfor %}
             {% if pagination.has_next %}
             <li class="page-item">
-                <a class="page-link" href="{{ url_for('users', page=pagination.next_num) }}" aria-label="Next">
+                <a class="page-link" href="{{ url_for('users', page=pagination.next_num, search=search_query) }}" aria-label="Next">
                     <span aria-hidden="true">&raquo;</span>
                 </a>
             </li>
