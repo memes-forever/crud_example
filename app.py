@@ -1,8 +1,9 @@
-# app.py (обновленный с датами в User: created_at и last_activity)
+# app.py (обновленный с пагинацией для items и users)
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime  # Для полей created_at и updated_at
+from sqlalchemy.orm import joinedload
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'  # Замените на реальный секретный ключ
@@ -21,6 +22,8 @@ class User(db.Model):
     role = db.Column(db.String(20), default='user')  # Роли: 'user', 'editor' или 'admin'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Дата создания
     last_activity = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # Дата последней активности
+
+    items = db.relationship('Item', backref='creator', lazy=True)
 
 
 # Модель для данных таблицы (пример: простая таблица с задачами)
@@ -55,13 +58,16 @@ def index():
     is_admin = current_user.role == 'admin'
     can_edit = current_user.role in ['admin', 'editor']
 
-    # Запрашиваем items с join на User для получения username создателя
-    items_raw = db.session.query(Item, User.name).join(User, Item.creator_id == User.id)
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
 
     if is_admin:
-        items = items_raw.all()
+        items_query = Item.query.options(joinedload(Item.creator))
     else:
-        items = items_raw.filter(Item.creator_id == current_user.id)
+        items_query = Item.query.filter_by(creator_id=current_user.id).options(joinedload(Item.creator))
+
+    pagination = items_query.order_by(Item.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    items = pagination.items
 
     if request.method == 'POST':
         if not can_edit:
@@ -99,11 +105,12 @@ def index():
         return redirect(url_for('index'))
 
     return render_template('index.html',
-                       items=items,
-                       is_admin=is_admin,
-                       can_edit=can_edit,
-                       current_role=current_user.role,
-                       current_user=current_user)  # ← эта строчка
+                           items=items,
+                           pagination=pagination,
+                           is_admin=is_admin,
+                           can_edit=can_edit,
+                           current_role=current_user.role,
+                           current_user=current_user)
 
 
 # Страница управления пользователями (только для админов)
@@ -118,7 +125,10 @@ def users():
         flash('Доступ запрещён.', 'danger')
         return redirect(url_for('index'))
 
-    all_users = User.query.all()
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    pagination = User.query.order_by(User.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    all_users = pagination.items
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -167,7 +177,7 @@ def users():
 
         return redirect(url_for('users'))
 
-    return render_template('users.html', users=all_users, current_user=current_user, is_admin=is_admin)
+    return render_template('users.html', users=all_users, pagination=pagination, current_user=current_user, is_admin=is_admin)
 
 
 # Страница логина
