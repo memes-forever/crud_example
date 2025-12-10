@@ -1,4 +1,4 @@
-# web table
+# crud web table
 
 ### install req
 ```shell
