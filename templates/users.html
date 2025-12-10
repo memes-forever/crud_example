@@ -1,0 +1,206 @@
+<!-- templates/users.html — добавлены колонки с датами created_at и last_activity -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Управление пользователями</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Управление пользователями</h1>
+        <div class="text-end">
+            <p class="mb-1">
+                <strong>Вы вошли как:</strong><br>
+                <span class="badge bg-primary fs-6">{{ current_user.name }}</span>
+                <span class="badge bg-{{ 'danger' if is_admin else 'success' if current_user.role == 'editor' else 'secondary' }}">
+                    {{ current_user.role }}
+                </span>
+            </p>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary btn-sm">Назад</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary btn-sm">Выход</a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <h2 class="mt-4">Список пользователей</h2>
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Логин</th>
+                    <th>Имя</th>
+                    <th>Роль</th>
+                    <th>Дата создания</th>
+                    <th>Последняя активность</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr {% if user.id == current_user.id %}class="table-warning fw-bold"{% endif %}>
+                    <td>{{ user.id }}</td>
+                    <td>
+                        {{ user.username }}
+                        {% if user.id == current_user.id %}
+                            <span class="badge bg-primary ms-2">это вы</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.name or '—' }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'danger' if user.role == 'admin' else 'success' if user.role == 'editor' else 'secondary' }}">
+                            {{ user.role }}
+                        </span>
+                    </td>
+                    <td>{{ user.created_at.strftime('%d.%m.%Y %H:%M') if user.created_at else '—' }}</td>
+                    <td>{{ user.last_activity.strftime('%d.%m.%Y %H:%M') if user.last_activity else '—' }}</td>
+                    <td>
+                        {% if user.id != current_user.id %}
+                        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#roleModal"
+                                onclick="openRoleModal({{ user.id }}, '{{ user.role }}')">
+                            Роль
+                        </button>
+                        {% endif %}
+
+                        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#nameModal"
+                                onclick="openNameModal({{ user.id }}, '{{ user.name or ''|escape }}')">
+                            Имя
+                        </button>
+
+                        <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#passwordModal"
+                                onclick="openPasswordModal({{ user.id }})">
+                            Пароль
+                        </button>
+
+                        {% if user.id != current_user.id and user.role != 'admin' %}
+                        <form method="post" class="d-inline">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm"
+                                    onclick="return confirm('Удалить {{ user.username }}?');">Удалить</button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Модальное окно: Роль -->
+    <div class="modal fade" id="roleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать роль пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="edit_role">
+                        <input type="hidden" name="user_id" id="roleUserId">
+                        <div class="mb-3">
+                            <label class="form-label">Роль</label>
+                            <select name="role" class="form-select" id="roleSelect">
+                                <option value="user">user</option>
+                                <option value="editor">editor</option>
+                                <option value="admin">admin</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Имя -->
+    <div class="modal fade" id="nameModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать имя пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="edit_name">
+                        <input type="hidden" name="user_id" id="nameUserId">
+                        <div class="mb-3">
+                            <label class="form-label">Полное имя</label>
+                            <input type="text" name="name" id="userNameInput" class="form-control" placeholder="Иванов Иван">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Смена пароля -->
+    <div class="modal fade" id="passwordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Сменить пароль пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post">
+                    <div class="modal-body">
+                        <input type="hidden" name="action" value="change_password">
+                        <input type="hidden" name="user_id" id="passwordUserId">
+                        <div class="mb-3">
+                            <label class="form-label">Новый пароль</label>
+                            <input type="password" name="new_password" class="form-control" required minlength="4">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Подтвердите пароль</label>
+                            <input type="password" name="confirm_password" class="form-control" required minlength="4">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сменить пароль</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openRoleModal(userId, currentRole) {
+            document.getElementById('roleUserId').value = userId;
+            document.getElementById('roleSelect').value = currentRole;
+        }
+
+        function openNameModal(userId, currentName) {
+            document.getElementById('nameUserId').value = userId;
+            document.getElementById('userNameInput').value = currentName.replace(/&quot;/g, '"');
+        }
+
+        function openPasswordModal(userId) {
+            document.getElementById('passwordUserId').value = userId;
+        }
+    </script>
+</body>
+</html>
