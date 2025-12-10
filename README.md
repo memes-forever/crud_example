@@ -17,5 +17,8 @@ cd instance
 sqlite3
 .open "database.db"
 
+select * from user;
+select * from item;
+
 # alter table user add column name String(80);
 ```
